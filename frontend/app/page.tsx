@@ -25,7 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { useTheme } from "next-themes";
 
