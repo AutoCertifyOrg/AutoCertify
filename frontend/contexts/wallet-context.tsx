@@ -1,8 +1,12 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import React, { createContext, useContext, useEffect, useState } from "react"
+import { BrowserProvider, Contract, Eip1193Provider, JsonRpcSigner } from "ethers"
 import { toast } from "@/components/ui/use-toast"
+import VehicleRegistryABI from "@/constants/VehicleRegistryABI.json";
+import VehicleRegistryAddress from "@/constants/VehicleRegistryAddress.json";
+
+const contractAddress = VehicleRegistryAddress.address;
 
 interface WalletContextType {
   address: string | null
@@ -10,6 +14,9 @@ interface WalletContextType {
   isConnected: boolean
   connect: () => Promise<void>
   disconnect: () => void
+  provider: BrowserProvider | null
+  signer: JsonRpcSigner | null
+  contract: Contract | null
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined)
@@ -18,26 +25,35 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
+  const [provider, setProvider] = useState<BrowserProvider | null>(null)
+  const [signer, setSigner] = useState<JsonRpcSigner | null>(null)
+  const [contract, setContract] = useState<Contract | null>(null)
 
-  // Check if MetaMask is installed
-  const isMetaMaskInstalled = () => {
-    return typeof window !== "undefined" && window.ethereum !== undefined
-  }
+  const isMetaMaskInstalled = () =>
+    typeof window !== "undefined" && typeof window.ethereum !== "undefined"
 
-  // Auto-connect wallet if previously connected
   useEffect(() => {
     const storedAddress = localStorage.getItem("walletAddress")
     const userRole = localStorage.getItem("userRole")
-
-    // Only auto-connect for business users
-    const isBusinessUser = ["manufacturer", "dealer", "logistics", "insurance", "admin"].includes(userRole || "")
+    const isBusinessUser = ["manufacturer", "dealer", "logistics", "insurance", "admin"].includes(
+      userRole || ""
+    )
 
     if (storedAddress && isBusinessUser) {
       autoConnect()
     }
   }, [])
 
-  // Auto-connect function
+  const initializeProvider = async () => {
+    const ethProvider = new BrowserProvider(window.ethereum as Eip1193Provider)
+    const walletSigner = await ethProvider.getSigner()
+    const contractInstance = new Contract(contractAddress, VehicleRegistryABI, walletSigner)
+
+    setProvider(ethProvider)
+    setSigner(walletSigner)
+    setContract(contractInstance)
+  }
+
   const autoConnect = async () => {
     if (!isMetaMaskInstalled()) return
 
@@ -46,13 +62,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (accounts.length > 0) {
         setAddress(accounts[0])
         setIsConnected(true)
+        await initializeProvider()
       }
     } catch (error) {
       console.error("Error auto-connecting to MetaMask:", error)
     }
   }
 
-  // Connect wallet
   const connect = async () => {
     if (!isMetaMaskInstalled()) {
       toast({
@@ -67,23 +83,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
-
       if (accounts.length > 0) {
-        setAddress(accounts[0])
+        const account = accounts[0]
+        setAddress(account)
         setIsConnected(true)
-
-        // Store address in localStorage
-        localStorage.setItem("walletAddress", accounts[0])
+        localStorage.setItem("walletAddress", account)
+        await initializeProvider()
 
         toast({
           title: "Wallet Connected",
-          description: `Connected to ${shortenAddress(accounts[0])}`,
+          description: `Connected to ${shortenAddress(account)}`,
         })
       }
     } catch (error: any) {
       console.error("Error connecting to MetaMask:", error)
 
-      // Handle user rejection
       if (error.code === 4001) {
         toast({
           title: "Connection Rejected",
@@ -102,10 +116,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Disconnect wallet
   const disconnect = () => {
     setAddress(null)
     setIsConnected(false)
+    setProvider(null)
+    setSigner(null)
+    setContract(null)
     localStorage.removeItem("walletAddress")
 
     toast({
@@ -114,17 +130,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
-  // Listen for account changes
   useEffect(() => {
     if (isMetaMaskInstalled()) {
-      const handleAccountsChanged = (accounts: string[]) => {
+      const handleAccountsChanged = async (accounts: string[]) => {
         if (accounts.length === 0) {
-          // User disconnected their wallet
           disconnect()
         } else if (accounts[0] !== address) {
-          // User switched accounts
           setAddress(accounts[0])
           localStorage.setItem("walletAddress", accounts[0])
+          await initializeProvider()
 
           toast({
             title: "Account Changed",
@@ -134,14 +148,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
 
       window.ethereum.on("accountsChanged", handleAccountsChanged)
-
       return () => {
         window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
       }
     }
   }, [address])
 
-  // Helper function to shorten address for display
   const shortenAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
   }
@@ -154,6 +166,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         isConnected,
         connect,
         disconnect,
+        provider,
+        signer,
+        contract,
       }}
     >
       {children}
@@ -172,11 +187,6 @@ export function useWallet() {
 // Add TypeScript declaration for window.ethereum
 declare global {
   interface Window {
-    ethereum?: {
-      isMetaMask?: boolean
-      request: (request: { method: string; params?: any[] }) => Promise<any>
-      on: (eventName: string, listener: (...args: any[]) => void) => void
-      removeListener: (eventName: string, listener: (...args: any[]) => void) => void
-    }
+    ethereum?: Eip1193Provider
   }
 }

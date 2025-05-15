@@ -1,128 +1,217 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Package } from "lucide-react";
+import { DashboardLayout } from "@/components/dashboard-layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useWallet } from "@/contexts/wallet-context";
+import { WalletWarning } from "@/components/wallet-warning";
+import { Badge } from "@/components/ui/badge";
 
-import { useState } from "react"
-import { Package, Upload } from "lucide-react"
-import { DashboardLayout } from "@/components/dashboard-layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/use-toast"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useWallet } from "@/contexts/wallet-context"
-import { WalletWarning } from "@/components/wallet-warning"
+type CrashRecord = {
+  date: string;
+  location: string;
+  damageType: string;
+  description: string;
+  repaired: boolean;
+};
+
+type ServiceRecord = {
+  date: string;
+  serviceType: string;
+  description: string;
+};
+
+type MintedVehicle = {
+  vin: string;
+  currentOwner: string;
+  ownerHistory: string[];
+  ownershipTimestamps: string[];
+  mileageRecords: number[];
+  mileageTimestamps: string[];
+  crashHistory: CrashRecord[];
+  serviceHistory: ServiceRecord[];
+  engineType: string;
+  drivetrain: string;
+  transmission: string;
+  trimLevel: string;
+  exteriorColor: string;
+  interiorColor: string;
+  manufacturer: string;
+  productionPlant: string;
+  modelYear: string;
+  bodyStyle: string;
+  fuelType: string;
+  available: boolean;
+  shipmentStatus: number;
+};
 
 export default function ManufacturerDashboard() {
-  const { isConnected } = useWallet()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [mintedVehicles, setMintedVehicles] = useState([
-    {
-      id: "1",
-      vin: "1HGCM82633A004352",
-      make: "Toyota",
-      model: "Camry",
-      year: 2023,
-      color: "White",
-      date: "2023-01-15",
-      status: "Minted",
-      txHash: "0x7c2b8a9f5e3d6c4b1a0e9d8f7a6b5c4d3e2f1a0b",
-    },
-    {
-      id: "2",
-      vin: "5YJSA1E40FF000317",
-      make: "Tesla",
-      model: "Model S",
-      year: 2023,
-      color: "Red",
-      date: "2023-02-20",
-      status: "Minted",
-      txHash: "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
-    },
-    {
-      id: "3",
-      vin: "WAUAF78E96A149325",
-      make: "Audi",
-      model: "A4",
-      year: 2023,
-      color: "Black",
-      date: "2023-03-10",
-      status: "Minted",
-      txHash: "0xe1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0",
-    },
-  ])
+  const { isConnected, contract, signer } = useWallet();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mintedVehicles, setMintedVehicles] = useState<MintedVehicle[]>([]);
+  const [isLoadingInventory, setIsLoadingInventory] = useState(false);
 
-  const handleMintVehicle = (e: React.FormEvent) => {
-    e.preventDefault()
+  const shipmentStatusMap = ["Scheduled", "InTransit", "Delivered", "Delay"];
 
-    // Check if wallet is connected
-    if (!isConnected) {
+  const getValue = (form: FormData, key: string) =>
+    (form.get(key) as string) || "";
+
+  const handleMintVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!isConnected || !contract || !signer) {
       toast({
         title: "Wallet Not Connected",
         description: "Please connect your wallet to mint a vehicle NFT",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    const formData = new FormData(e.target as HTMLFormElement)
-    const vin = formData.get("vin") as string
+    const formData = new FormData(e.target as HTMLFormElement);
+    const vin = getValue(formData, "vin");
 
     if (!vin) {
       toast({
         title: "Error",
         description: "VIN is required",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
-
-      // Create new vehicle
-      const newVehicle = {
-        id: (mintedVehicles.length + 1).toString(),
-        vin: vin,
-        make: formData.get("make") as string,
-        model: formData.get("model") as string,
-        year: Number.parseInt(formData.get("year") as string),
-        color: formData.get("color") as string,
-        date: new Date().toISOString().split("T")[0],
-        status: "Minted",
-        txHash: "0x" + Math.random().toString(16).substring(2, 42),
-      }
-
-      // Add to list
-      setMintedVehicles([...mintedVehicles, newVehicle])
-
-      // Reset form
-      const form = e.target as HTMLFormElement
-      form.reset()
+    try {
+      const tx = await contract.registerVehicle(
+        vin,
+        await signer.getAddress(),
+        getValue(formData, "engineType"),
+        getValue(formData, "drivetrain"),
+        getValue(formData, "transmission"),
+        getValue(formData, "trimLevel"),
+        getValue(formData, "exteriorColor"),
+        getValue(formData, "interiorColor"),
+        getValue(formData, "make"),
+        getValue(formData, "productionPlant"),
+        getValue(formData, "year"),
+        getValue(formData, "model"),
+        getValue(formData, "fuelType")
+      );
+      await tx.wait();
+      await fetchMintedVehicles();
+      (e.target as HTMLFormElement).reset();
 
       toast({
         title: "Vehicle NFT Minted",
-        description: `Successfully minted NFT for VIN: ${vin}`,
-      })
-    }, 2000)
-  }
+        description: `Successfully registered and minted NFT for VIN: ${vin}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Minting Failed",
+        description: error?.message || "Failed to mint vehicle NFT.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const fetchMintedVehicles = async () => {
+    if (!isConnected || !contract) {
+      setMintedVehicles([]);
+      return;
+    }
+
+    setIsLoadingInventory(true);
+    try {
+      const vehicles = await contract.getAllVehicles();
+      setMintedVehicles(vehicles);
+    } catch (error: any) {
+      toast({
+        title: "Failed to fetch vehicles",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingInventory(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMintedVehicles();
+  }, [isConnected, contract]);
+
+    const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "0":
+        return (
+          <Badge className="bg-blue-500/10 text-blue-500">Scheduled</Badge>
+        );
+      case "1":
+        return (
+          <Badge className="bg-yellow-500/10 text-yellow-500">In Transit</Badge>
+        );
+      case "2":
+        return (
+          <Badge className="bg-green-500/10 text-green-500">Delivered</Badge>
+        );
+      case "3":
+        return <Badge className="bg-red-500/10 text-red-500">Delayed</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
+    const ShipmentStatus: Record<string, number> = {
+    Scheduled: 0,
+    InTransit: 1,
+    Delivered: 2,
+    Delayed: 3,
+  };
 
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-8 p-4 md:p-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Manufacturer Dashboard</h1>
-          <p className="text-muted-foreground">Mint new vehicle NFTs and manage your vehicle inventory.</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Manufacturer Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Mint new vehicle NFTs and manage your vehicle inventory.
+          </p>
         </div>
 
-        {/* Show wallet warning if not connected */}
         <WalletWarning />
 
         <Tabs defaultValue="mint">
@@ -135,122 +224,39 @@ export default function ManufacturerDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Mint New Vehicle NFT</CardTitle>
-                <CardDescription>Create a new vehicle NFT with factory specifications.</CardDescription>
+                <CardDescription>
+                  Create a new vehicle NFT with factory specifications.
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <form id="mint-form" onSubmit={handleMintVehicle} className="space-y-6">
+                <form
+                  id="mint-form"
+                  onSubmit={handleMintVehicle}
+                  className="space-y-6"
+                >
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="vin">VIN (Vehicle Identification Number) *</Label>
-                      <Input id="vin" name="vin" placeholder="e.g., 1HGCM82633A123456" required />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="make">Make *</Label>
-                      <Select name="make" required>
-                        <SelectTrigger id="make">
-                          <SelectValue placeholder="Select make" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Toyota">Toyota</SelectItem>
-                          <SelectItem value="Honda">Honda</SelectItem>
-                          <SelectItem value="Ford">Ford</SelectItem>
-                          <SelectItem value="Chevrolet">Chevrolet</SelectItem>
-                          <SelectItem value="BMW">BMW</SelectItem>
-                          <SelectItem value="Mercedes">Mercedes</SelectItem>
-                          <SelectItem value="Audi">Audi</SelectItem>
-                          <SelectItem value="Tesla">Tesla</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="model">Model *</Label>
-                      <Input id="model" name="model" placeholder="e.g., Camry" required />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="year">Year *</Label>
-                      <Input
-                        id="year"
-                        name="year"
-                        type="number"
-                        min="1900"
-                        max="2099"
-                        placeholder="e.g., 2023"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="color">Exterior Color *</Label>
-                      <Input id="color" name="color" placeholder="e.g., Silver" required />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="interior-color">Interior Color</Label>
-                      <Input id="interior-color" name="interior-color" placeholder="e.g., Black" />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="engine">Engine Type</Label>
-                      <Input id="engine" name="engine" placeholder="e.g., 2.5L 4-Cylinder" />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="transmission">Transmission</Label>
-                      <Select name="transmission">
-                        <SelectTrigger id="transmission">
-                          <SelectValue placeholder="Select transmission" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Automatic">Automatic</SelectItem>
-                          <SelectItem value="Manual">Manual</SelectItem>
-                          <SelectItem value="CVT">CVT</SelectItem>
-                          <SelectItem value="DCT">Dual-Clutch</SelectItem>
-                          <SelectItem value="Electric">Electric</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="additional-features">Additional Features</Label>
-                    <Textarea
-                      id="additional-features"
-                      name="additional-features"
-                      placeholder="Enter additional features or options"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Vehicle Images</Label>
-                    <div className="flex items-center justify-center w-full">
-                      <label
-                        htmlFor="vehicle-image"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted"
-                      >
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
-                          <p className="mb-2 text-sm text-muted-foreground">
-                            <span className="font-semibold">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-xs text-muted-foreground">PNG, JPG or WEBP (MAX. 5MB)</p>
-                        </div>
-                        <Input
-                          id="vehicle-image"
-                          name="vehicle-image"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
+                    <InputGroup label="VIN *" name="vin" placeholder="e.g., 1HGCM82633A123456" required />
+                    <SelectGroup label="Make *" name="make" options={["Toyota", "Honda", "Ford", "Chevrolet", "BMW", "Mercedes", "Audi", "Tesla"]} required />
+                    <InputGroup label="Model *" name="model" placeholder="e.g., Camry" required />
+                    <InputGroup label="Year *" name="year" type="number" placeholder="e.g., 2023" required />
+                    <InputGroup label="Exterior Color *" name="exteriorColor" placeholder="e.g., Silver" required />
+                    <InputGroup label="Interior Color" name="interiorColor" placeholder="e.g., Black" />
+                    <InputGroup label="Engine Type" name="engineType" placeholder="e.g., 2.5L 4-Cylinder" />
+                    <InputGroup label="Trim Level" name="trimLevel" placeholder="e.g., LXS, Premium" />
+                    <SelectGroup label="Drive Train" name="drivetrain" options={["AWD", "FWD", "RWD"]} />
+                    <SelectGroup label="Transmission" name="transmission" options={["Automatic", "Manual", "CVT", "DCT", "Electric"]} />
+                    <InputGroup label="Production Plant" name="productionPlant" placeholder="e.g., Toronto" />
+                    <SelectGroup label="Fuel Type" name="fuelType" options={["Petrol", "Diesel", "Electric"]} />
                   </div>
                 </form>
               </CardContent>
               <CardFooter>
-                <Button type="submit" form="mint-form" disabled={isSubmitting || !isConnected} className="w-full">
+                <Button
+                  type="submit"
+                  form="mint-form"
+                  disabled={isSubmitting || !isConnected}
+                  className="w-full"
+                >
                   {isSubmitting ? (
                     <>
                       <Package className="mr-2 h-4 w-4 animate-spin" />
@@ -271,7 +277,9 @@ export default function ManufacturerDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Minted Vehicles</CardTitle>
-                <CardDescription>View all vehicle NFTs minted by your organization.</CardDescription>
+                <CardDescription>
+                  View all vehicle NFTs minted by your organization.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
@@ -282,30 +290,45 @@ export default function ManufacturerDashboard() {
                         <TableHead>Make/Model</TableHead>
                         <TableHead>Year</TableHead>
                         <TableHead>Color</TableHead>
-                        <TableHead>Date Minted</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Transaction</TableHead>
+                        <TableHead>Trim</TableHead>
+                        <TableHead>Shipment</TableHead>
+                        <TableHead>Availability</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mintedVehicles.map((vehicle) => (
-                        <TableRow key={vehicle.id}>
-                          <TableCell className="font-mono text-xs">{vehicle.vin}</TableCell>
-                          <TableCell>
-                            {vehicle.make} {vehicle.model}
+                      {isLoadingInventory ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-6">
+                            Loading...
                           </TableCell>
-                          <TableCell>{vehicle.year}</TableCell>
-                          <TableCell>{vehicle.color}</TableCell>
-                          <TableCell>{vehicle.date}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <div className="mr-2 h-2 w-2 rounded-full bg-green-500" />
-                              <span>{vehicle.status}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs truncate max-w-[120px]">{vehicle.txHash}</TableCell>
                         </TableRow>
-                      ))}
+                      ) : mintedVehicles.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-6">
+                            No vehicles found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        mintedVehicles.map((v) => (
+                          <TableRow key={v.vin}>
+                            <TableCell className="font-mono text-xs">{v.vin}</TableCell>
+                            <TableCell>{v.manufacturer} {v.bodyStyle}</TableCell>
+                            <TableCell>{v.modelYear}</TableCell>
+                            <TableCell>{v.exteriorColor}</TableCell>
+                            <TableCell>{v.trimLevel}</TableCell>
+                            <TableCell>{getStatusBadge(Object.keys(ShipmentStatus).find(
+                              (key) =>
+                                ShipmentStatus[key] === v.shipmentStatus
+                            ) || String(v.shipmentStatus))}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <div className={`mr-2 h-2 w-2 rounded-full ${v.available ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span>{v.available ? "Available" : "Sold"}</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -314,6 +337,54 @@ export default function ManufacturerDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+      <Toaster />
     </DashboardLayout>
-  )
+  );
 }
+
+const InputGroup = ({
+  label,
+  name,
+  placeholder,
+  type = "text",
+  required = false,
+}: {
+  label: string;
+  name: string;
+  placeholder?: string;
+  type?: string;
+  required?: boolean;
+}) => (
+  <div className="space-y-2">
+    <Label htmlFor={name}>{label}</Label>
+    <Input id={name} name={name} placeholder={placeholder} type={type} required={required} />
+  </div>
+);
+
+const SelectGroup = ({
+  label,
+  name,
+  options,
+  required = false,
+}: {
+  label: string;
+  name: string;
+  options: string[];
+  required?: boolean;
+}) => (
+  <div className="space-y-2">
+    <Label htmlFor={name}>{label}</Label>
+    <Select name={name} required={required}>
+      <SelectTrigger id={name}>
+        <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o} value={o}>
+            {o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+);

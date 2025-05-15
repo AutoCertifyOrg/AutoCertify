@@ -19,12 +19,14 @@ import {
 } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import { useTheme } from "next-themes";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { theme } = useTheme();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,54 +35,55 @@ export default function LoginPage() {
     // Simple validation
     if (!email || !password) {
       toast({
-      title: "Error",
-      description: "Please enter both email and password",
-      variant: "destructive",
+        title: "Error",
+        description: "Please enter both email and password",
+        variant: "destructive",
       });
       setIsLoading(false);
       return;
     }
 
     try {
-      const action = 'login';
+      const action = "login";
       const response = await fetch("http://localhost:3000/api/users", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password, action}),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password, action }),
       });
 
       if (!response.ok) {
-      throw new Error("Invalid email or password");
+        throw new Error("Invalid email or password");
       }
 
       const data = await response.json();
 
       // Store user info in localStorage
-      console.log(data.user.userType),
-      console.log(data.user.email)
+      console.log(data.user.userType), console.log(data.user.email);
       localStorage.setItem("userRole", data.user.userType);
       localStorage.setItem("userEmail", data.user.email);
 
       toast({
-      title: "Success",
-      description: "You have been logged in successfully",
+        title: "Success",
+        description: "You have been logged in successfully",
       });
 
       const pendingVin = localStorage.getItem("pendingVinSearch");
       if (pendingVin) {
-      localStorage.removeItem("pendingVinSearch");
-      router.push(`/dashboard/${data.user.userType}/search?vin=${pendingVin}`);
+        localStorage.removeItem("pendingVinSearch");
+        router.push(
+          `/dashboard/${data.user.userType}/search?vin=${pendingVin}`
+        );
       } else {
-      router.push(`/dashboard/${data.user.userType}`);
+        router.push(`/dashboard/${data.user.userType}`);
       }
     } catch (error: any) {
       setIsLoading(false);
       toast({
-      title: "Error",
-      description: error.message || "Login failed",
-      variant: "destructive",
+        title: "Error",
+        description: error.message || "Login failed",
+        variant: "destructive",
       });
     }
   };
@@ -98,8 +101,13 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-6">
-              <Car className="h-10 w-10 text-primary" />
+            <div className="flex items-center justify-center mb-2">
+              <img
+                src={theme === "light" ? "/logo-black.png" : "/logo-white.png"}
+                alt="logo"
+                height={80}
+                width={80}
+              />
             </div>
             <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
             <CardDescription className="text-center">

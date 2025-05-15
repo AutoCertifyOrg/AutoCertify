@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import type React from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Car,
   FileText,
@@ -23,11 +23,11 @@ import {
   BarChart3,
   Database,
   AlertTriangle,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,46 +35,48 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { toast } from "@/hooks/use-toast"
-import { Toaster } from "@/components/ui/toaster"
-import { WalletConnectButton } from "@/components/wallet-connect-button"
-import { useWallet } from "@/contexts/wallet-context"
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import { WalletConnectButton } from "@/components/wallet-connect-button";
+import { useWallet } from "@/contexts/wallet-context";
+import { useTheme } from "next-themes";
 
 interface NavigationItem {
-  name: string
-  href: string
-  icon: React.ElementType
-  roles?: string[]
-  requiresWallet?: boolean
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  roles?: string[];
+  requiresWallet?: boolean;
 }
 
 interface DashboardLayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { isConnected, address } = useWallet()
+  const pathname = usePathname();
+  const router = useRouter();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isConnected, address } = useWallet();
+  const { theme } = useTheme();
 
   useEffect(() => {
     // Check if user is authenticated
-    const role = localStorage.getItem("userRole")
-    const email = localStorage.getItem("userEmail")
+    const role = localStorage.getItem("userRole");
+    const email = localStorage.getItem("userEmail");
 
     if (!role) {
       // Redirect to login if not authenticated
-      router.push("/auth/login")
-      return
+      router.push("/auth/login");
+      return;
     }
 
-    setUserRole(role)
-    setUserEmail(email)
-  }, [router])
+    setUserRole(role);
+    setUserEmail(email);
+  }, [router]);
 
   const roleInfo = {
     regular: {
@@ -112,7 +114,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       icon: Shield,
       color: "text-gray-500",
     },
-  }
+  };
 
   // Base navigation items for all roles
   const baseNavigation: NavigationItem[] = [
@@ -120,93 +122,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       name: "Dashboard",
       href: `/dashboard/${userRole}`,
       icon: Home,
-      roles: ["regular", "premium", "manufacturer", "logistics", "dealer", "insurance", "admin"],
+      roles: [
+        "regular",
+        "premium",
+        "manufacturer",
+        "logistics",
+        "dealer",
+        "insurance",
+        "admin",
+      ],
     },
-    {
-      name: "Search Vehicles",
-      href: `/dashboard/${userRole}/search`,
-      icon: Search,
-      roles: ["regular", "premium", "dealer", "insurance", "admin"],
-    },
-    {
-      name: "Settings",
-      href: `/dashboard/${userRole}/settings`,
-      icon: Settings,
-      roles: ["regular", "premium", "manufacturer", "logistics", "dealer", "insurance", "admin"],
-    },
-  ]
+  ];
 
   // Role-specific navigation items
   const roleNavigation: { [key: string]: NavigationItem[] } = {
-    manufacturer: [
-      {
-        name: "Mint Vehicle NFT",
-        href: `/dashboard/${userRole}/mint`,
-        icon: Package,
-        requiresWallet: true,
-        roles: ["manufacturer"],
-      },
-    ],
-    logistics: [
-      {
-        name: "Update Shipment",
-        href: `/dashboard/${userRole}/shipment`,
-        icon: Truck,
-        requiresWallet: true,
-        roles: ["logistics"],
-      },
-    ],
-    dealer: [
-      {
-        name: "Transfer Ownership",
-        href: `/dashboard/${userRole}/transfer`,
-        icon: Store,
-        requiresWallet: true,
-        roles: ["dealer"],
-      },
-    ],
-    insurance: [
-      {
-        name: "Add Crash Record",
-        href: `/dashboard/${userRole}/crash`,
-        icon: FileText,
-        requiresWallet: true,
-        roles: ["insurance"],
-      },
-    ],
-    admin: [
-      {
-        name: "Manage Vehicles",
-        href: `/dashboard/admin/vehicles`,
-        icon: Car,
-        roles: ["admin"],
-      },
-      {
-        name: "Manage Users",
-        href: `/dashboard/admin/users`,
-        icon: Users,
-        roles: ["admin"],
-      },
-      {
-        name: "Transactions",
-        href: `/dashboard/admin/transactions`,
-        icon: Activity,
-        roles: ["admin"],
-      },
-      {
-        name: "Analytics",
-        href: `/dashboard/admin/analytics`,
-        icon: BarChart3,
-        roles: ["admin"],
-      },
-      {
-        name: "System Settings",
-        href: `/dashboard/admin/settings`,
-        icon: Database,
-        roles: ["admin"],
-      },
-    ],
-  }
+    manufacturer: [],
+    logistics: [],
+    dealer: [],
+    insurance: [],
+    admin: [],
+  };
 
   // Combine base navigation with role-specific navigation
   const navigation: NavigationItem[] = [
@@ -214,34 +149,42 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     ...(userRole && roleNavigation[userRole as keyof typeof roleNavigation]
       ? roleNavigation[userRole as keyof typeof roleNavigation]
       : []),
-  ]
+  ];
 
   const handleLogout = () => {
     toast({
       title: "Logged out",
       description: "You have been logged out successfully",
-    })
+    });
 
     // Clear user data from localStorage
-    localStorage.removeItem("userRole")
-    localStorage.removeItem("userEmail")
-    localStorage.removeItem("userName")
-    localStorage.removeItem("walletAddress")
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("walletAddress");
 
     // Redirect to home page after a short delay
     setTimeout(() => {
-      window.location.href = "/"
-    }, 1000)
-  }
+      window.location.href = "/";
+    }, 1000);
+  };
 
-  const currentRole = userRole ? roleInfo[userRole as keyof typeof roleInfo] : null
-  const RoleIcon = currentRole?.icon || Car
+  const currentRole = userRole
+    ? roleInfo[userRole as keyof typeof roleInfo]
+    : null;
+  const RoleIcon = currentRole?.icon || Car;
 
   // Check if current user is a business user
-  const isBusinessUser = ["manufacturer", "dealer", "logistics", "insurance", "admin"].includes(userRole || "")
+  const isBusinessUser = [
+    "manufacturer",
+    "dealer",
+    "logistics",
+    "insurance",
+    "admin",
+  ].includes(userRole || "");
 
   if (!userRole) {
-    return null // Don't render anything until we check authentication
+    return null; // Don't render anything until we check authentication
   }
 
   return (
@@ -257,46 +200,67 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <SheetContent side="left" className="w-64 sm:max-w-xs">
             <div className="flex h-16 items-center border-b">
               <Link href="/" className="flex items-center gap-2 font-semibold">
-                <Car className="h-6 w-6 text-primary" />
+                <img
+                  src={
+                    theme === "light" ? "/logo-black.png" : "/logo-white.png"
+                  }
+                  alt="logo"
+                  height={36}
+                  width={36}
+                />
                 <span>AutoCertify</span>
               </Link>
-              <Button variant="ghost" size="icon" className="ml-auto" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-auto"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
                 <X className="h-5 w-5" />
                 <span className="sr-only">Close</span>
               </Button>
             </div>
             <nav className="grid gap-2 py-4">
               {navigation
-                .filter((item) => !item.roles || item.roles.includes(userRole || ""))
+                .filter(
+                  (item) => !item.roles || item.roles.includes(userRole || "")
+                )
                 .map((item) => {
                   // Disable navigation items that require wallet if wallet is not connected
-                  const isDisabled = item.requiresWallet && !isConnected
+                  const isDisabled = item.requiresWallet && !isConnected;
 
-                  const Icon = item.icon
+                  const Icon = item.icon;
                   return (
                     <Link
                       key={item.href}
                       href={isDisabled ? "#" : item.href}
                       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:text-primary ${
-                        pathname === item.href ? "bg-muted font-medium" : "text-muted-foreground"
-                      } ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
+                        pathname === item.href
+                          ? "bg-muted font-medium"
+                          : "text-muted-foreground"
+                      } ${
+                        isDisabled
+                          ? "opacity-50 cursor-not-allowed pointer-events-none"
+                          : ""
+                      }`}
                       onClick={(e) => {
                         if (isDisabled) {
-                          e.preventDefault()
+                          e.preventDefault();
                           toast({
                             title: "Wallet Not Connected",
-                            description: "Please connect your wallet to access this feature",
+                            description:
+                              "Please connect your wallet to access this feature",
                             variant: "destructive",
-                          })
+                          });
                         } else {
-                          setIsMobileMenuOpen(false)
+                          setIsMobileMenuOpen(false);
                         }
                       }}
                     >
                       <Icon className="h-4 w-4" />
                       {item.name}
                     </Link>
-                  )
+                  );
                 })}
               <Button
                 variant="ghost"
@@ -310,7 +274,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </SheetContent>
         </Sheet>
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Car className="h-6 w-6 text-primary" />
+          <img
+            src={theme === "light" ? "/logo-black.png" : "/logo-white.png"}
+            alt="logo"
+            height={36}
+            width={36}
+          />
           <span className="hidden md:inline">AutoCertify</span>
         </Link>
         <div className="flex-1"></div>
@@ -322,7 +291,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="/placeholder.svg" alt="User" />
-                  <AvatarFallback className={currentRole?.color}>{userEmail?.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className={currentRole?.color}>
+                    {userEmail?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -353,34 +324,43 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <aside className="hidden w-64 border-r bg-muted/40 md:block">
           <nav className="grid gap-2 p-4">
             {navigation
-              .filter((item) => !item.roles || item.roles.includes(userRole || ""))
+              .filter(
+                (item) => !item.roles || item.roles.includes(userRole || "")
+              )
               .map((item) => {
                 // Disable navigation items that require wallet if wallet is not connected
-                const isDisabled = item.requiresWallet && !isConnected
+                const isDisabled = item.requiresWallet && !isConnected;
 
-                const Icon = item.icon
+                const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={isDisabled ? "#" : item.href}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:text-primary ${
-                      pathname === item.href ? "bg-muted font-medium" : "text-muted-foreground"
-                    } ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
+                      pathname === item.href
+                        ? "bg-muted font-medium"
+                        : "text-muted-foreground"
+                    } ${
+                      isDisabled
+                        ? "opacity-50 cursor-not-allowed pointer-events-none"
+                        : ""
+                    }`}
                     onClick={(e) => {
                       if (isDisabled) {
-                        e.preventDefault()
+                        e.preventDefault();
                         toast({
                           title: "Wallet Not Connected",
-                          description: "Please connect your wallet to access this feature",
+                          description:
+                            "Please connect your wallet to access this feature",
                           variant: "destructive",
-                        })
+                        });
                       }
                     }}
                   >
                     <Icon className="h-4 w-4" />
                     {item.name}
                   </Link>
-                )
+                );
               })}
             <Button
               variant="ghost"
@@ -398,9 +378,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
                 <div className="flex-1">
-                  <h3 className="font-medium text-yellow-500">Wallet Not Connected</h3>
+                  <h3 className="font-medium text-yellow-500">
+                    Wallet Not Connected
+                  </h3>
                   <p className="text-muted-foreground text-sm">
-                    Please connect your MetaMask wallet to access blockchain features.
+                    Please connect your MetaMask wallet to access blockchain
+                    features.
                   </p>
                 </div>
                 <WalletConnectButton />
@@ -412,5 +395,5 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
       <Toaster />
     </div>
-  )
+  );
 }

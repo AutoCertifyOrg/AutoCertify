@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import axios from "axios";
+import { useTheme } from "next-themes";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [accountType, setAccountType] = useState("regular");
   const [isLoading, setIsLoading] = useState(false);
+  const { theme } = useTheme();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +54,7 @@ export default function SignupPage() {
         password,
         name,
         accountType,
-        action
+        action,
       });
 
       if (response.status === 201 || response.status === 200) {
@@ -111,8 +113,13 @@ export default function SignupPage() {
 
         <Card>
           <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-6">
-              <Car className="h-10 w-10 text-primary" />
+            <div className="flex items-center justify-center mb-2">
+              <img
+                src={theme === "light" ? "/logo-black.png" : "/logo-white.png"}
+                alt="logo"
+                height={80}
+                width={80}
+              />
             </div>
             <CardTitle className="text-2xl text-center">
               Create an account

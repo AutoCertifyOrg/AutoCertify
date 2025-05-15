@@ -14,20 +14,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { WalletWarning } from "@/components/wallet-warning";
-import { useWallet } from "@/contexts/wallet-context"
+import { useWallet } from "@/contexts/wallet-context";
 
 export default function RegularUserDashboard() {
   const [vin, setVin] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [vehicleInfo, setVehicleInfo] = useState<any>(null);
-  const { isConnected } = useWallet();
+  const { isConnected, contract } = useWallet();
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setVehicleInfo(null);
     if (!vin) {
       toast({
         title: "Error",
@@ -39,25 +40,66 @@ export default function RegularUserDashboard() {
 
     setIsSearching(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      if (!contract) {
+        throw new Error("Smart contract not connected");
+      }
+
+      const result = await contract.viewBasicReport(vin);
+      console.log("Vehicle data:", result);
+
+      const carExists = result[5] !== "";
+
+      if (carExists) {
+        const vehicleData = {
+          make: result[0],
+          model: result[1],
+          year: result[2],
+          color: result[3],
+          fuelType: result[4],
+          vin: result[5],
+        };
+        console.log("This is vehicle data" + vehicleData);
+
+        setVehicleInfo(vehicleData);
+
+        toast({
+          title: "Vehicle Found",
+          description: `Found vehicle with VIN: ${vin}`,
+        });
+      } else {
+        toast({
+          title: "Vehicle Not Found",
+          description: "No car found with that VIN.",
+          variant: "destructive",
+        });
+      }
+
       setIsSearching(false);
+    } catch (err: any) {
+      console.error("Contract call failed:", err);
 
-      // Mock data
-      setVehicleInfo({
-        vin: vin,
-        make: "Toyota",
-        model: "Camry",
-        year: 2020,
-        color: "Silver",
-        fuelType: "Gasoline",
-      });
-
-      toast({
-        title: "Vehicle Found",
-        description: `Found vehicle with VIN: ${vin}`,
-      });
-    }, 1500);
+      if (
+        err.code === "BAD_DATA" &&
+        err.info?.method === "viewBasicReport" &&
+        err.value === "0x"
+      ) {
+        // This is likely due to a missing vehicle entry
+        toast({
+          title: "Vehicle Not Found",
+          description: "No car found with that VIN.",
+          variant: "destructive",
+        });
+        setIsSearching(false);
+      } else {
+        toast({
+          title: "Error",
+          description: "Something went wrong while fetching vehicle data.",
+          variant: "destructive",
+        });
+      }
+      setIsSearching(false);
+    }
   };
 
   return (
@@ -179,12 +221,7 @@ export default function RegularUserDashboard() {
                     including crash history, service records, and ownership
                     history.
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => (window.location.href = "/role-selector")}
-                  >
-                    Upgrade to Premium
-                  </Button>
+                  <Button variant="outline">Upgrade to Premium</Button>
                 </div>
               </CardContent>
             </Card>
@@ -200,6 +237,7 @@ export default function RegularUserDashboard() {
           </AlertDescription>
         </Alert>
       </div>
+      <Toaster />
     </DashboardLayout>
   );
 }
